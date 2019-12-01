@@ -6,7 +6,7 @@ hostname = 'localhost'
 
 
 def subscribe():
-    queue = RabbitMQ(hostname, 'new')
+    queue = RabbitMQ(hostname, '')
     while True:
         time.sleep(5)
         queue.consumer()

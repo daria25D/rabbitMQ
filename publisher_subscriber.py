@@ -13,7 +13,7 @@ class RabbitMQ(object):
     def __init__(self, hostname, queue, exchange=''):
         self.hostname = hostname
         self.queue = queue
-        self.exchange = ''
+        self.exchange = 'logs'
         self.connection = None
         self.channel = None
 
@@ -24,7 +24,10 @@ class RabbitMQ(object):
                          % (self.hostname, self.queue))
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(host=self.hostname))
         self.channel = self.connection.channel()
-        self.channel.queue_declare(queue=self.queue, durable=True)
+        self.channel.exchange_declare(exchange=self.exchange, exchange_type='fanout')
+        result = self.channel.queue_declare(queue=self.queue, exclusive=True)
+        self.queue = result.method.queue
+        self.channel.queue_bind(exchange=self.exchange, queue=self.queue)
 
     def __del__(self):
         sys.stdout.write('\nClosing RabbitMQ connection via %s for %s' \
@@ -35,7 +38,7 @@ class RabbitMQ(object):
 
     def publish(self, messages, display_output=False):
         for message in messages:
-            self.channel.basic_publish(exchange=self.exchange, routing_key=self.queue,
+            self.channel.basic_publish(exchange=self.exchange, routing_key="",
                                        body=message, properties=pika.BasicProperties(delivery_mode=2))
             if display_output:
                 sys.stdout.write('\n[x] Sent! %r' % (message,))
