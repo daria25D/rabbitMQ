@@ -1,14 +1,16 @@
-import json, time, sys
-import pika
-from publisher_subscriber import RabbitMQ
+import json
+import sys
+import time
 from threading import Thread
+
+from publisher_subscriber import RabbitMQ
 
 hostname = 'localhost'
 
 
 def publish(queue, num, n):
     vec = [0 for x in range(n)]
-    queue.connect()
+    queue.connect(client='publisher')
     while True:
         vec[num] += 1
         message = json.dumps({num: vec})
@@ -17,7 +19,7 @@ def publish(queue, num, n):
 
 
 def subscribe(queue, num):
-    queue.connect()
+    queue.connect(client='subscriber')
     time.sleep(3)
     queue.consumer(callback=None, snum=num)
 
@@ -30,15 +32,12 @@ def main():
         return -1
     queue = RabbitMQ(hostname, '', N=n)
     thread1 = Thread(target=publish, args=(queue, num, n))
-    # thread2 = Thread(target=subscribe, args=(queue, num))
+    thread2 = Thread(target=subscribe, args=(queue, num))
     thread1.start()
-    # thread2.start()
+    thread2.start()
     thread1.join()
-    # thread2.join()
+    thread2.join()
 
 
-
-if __name__ ==  '__main__':
+if __name__ == '__main__':
     main()
-
-
