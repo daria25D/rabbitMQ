@@ -1,4 +1,4 @@
-import json, time
+import json, time, sys
 import pika
 from publisher_subscriber import RabbitMQ
 
@@ -12,4 +12,13 @@ def subscribe():
         queue.consumer()
 
 
-subscribe()
+def main(n):
+    n = int(sys.argv[1])
+    i = int(sys.argv[2])
+    queue = (RabbitMQ(hostname, '', N=n))
+    queue.connect()
+    queue.consumer(callback=None, snum=i)
+
+
+if __name__ ==  '__main__':
+    main(3)
