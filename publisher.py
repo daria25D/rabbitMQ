@@ -12,9 +12,10 @@ def publish(queue, num, n):
     vec = [0 for x in range(n)]
     queue.connect(client='publisher')
     while True:
-        vec[num] += 1
-        message = json.dumps({num: vec})
-        queue.publish(message, True, pnum=num)
+        for i in range(3):
+            vec[num] += 1
+            message = json.dumps({num: vec})
+            queue.publish(message, True, pnum=num)
         time.sleep(2)
 
 
@@ -30,7 +31,7 @@ def main():
     if num >= n:
         print("error")
         return -1
-    queue = RabbitMQ(hostname, '', N=n)
+    queue = RabbitMQ(hostname, '', N=n, type='correct')
     thread1 = Thread(target=publish, args=(queue, num, n))
     thread2 = Thread(target=subscribe, args=(queue, num))
     thread1.start()

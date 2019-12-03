@@ -14,7 +14,7 @@ random.seed()
 class RabbitMQ(object):
     c_queue = []
 
-    def __init__(self, hostname, queue, exchange='', N=2):
+    def __init__(self, hostname, queue, exchange='', N=2, type='correct'):
         self.hostname = hostname
         self.queue = queue
         self.exchange = 'logs'
@@ -26,6 +26,7 @@ class RabbitMQ(object):
         self.publishers = []
         self.pnum = -1
         self.N = N
+        self.type_correctness = type
         # self.connect()
 
     def connect(self, client):
@@ -73,46 +74,37 @@ class RabbitMQ(object):
         self.c_queue = []
 
     def callback(self, ch, method, properties, body, display_output=True):
-        # probability = random.uniform(0.0, 1.0) # broken
-        probability = 0.0  # correct
         message = json.loads(body)
         sender_num = int(list(message.keys())[0])
         mvec = list(message.values())[0]
         flag = False
-        if self.vec is None:
-            self.vec = [mvec[i] for i in range(len(mvec))]
-            self.vec[sender_num] -= 1
-            # print(self.vec)
-            flag = True
-        elif self.vec[sender_num] == mvec[sender_num] - 1:
-            for k in range(len(self.vec)):
-                if self.vec[k] < mvec[k] and k != sender_num:
-                    flag = False
-                else:
-                    flag = True
-        if flag or self.pnum == sender_num:
-            self.vec[sender_num] += 1
-            if display_output:
-                sys.stdout.write('\n[s] Received %r' % (message))
-            # ch.basic_ack(delivery_tag=method.delivery_tag)
-        elif not flag and probability > 0.5:
-            self.c_queue.append([message, sender_num, mvec])
-            if len(self.c_queue) > 3:
-                self.print_queue(True)
-            # print("error " + self.c_queue)
-            # for i in range(len(self.c_queue)):
-            #     if self.vec[sender_num] == self.c_queue[i][2][sender_num]-1:
-            #         for k in range(len(self.vec)):
-            #             if self.vec[k] < self.c_queue[i][2][k] and k != sender_num:
-            #                 flag = False
-            #             else:
-            #                 flag = True
-            #     if flag:
-            #         self.vec[sender_num] += 1
-            #         print(self.vec)
-            #         if display_output:
-            #             sys.stdout.write('\n[s] Received %r' % (self.c_queue[i][0]))
-            #         ch.basic_ack(delivery_tag=method.delivery_tag)
+        if self.type_correctness == 'correct':
+            if self.vec is None:
+                self.vec = [mvec[i] for i in range(len(mvec))]
+                self.vec[sender_num] -= 1
+                # print(self.vec)
+                flag = True
+            elif self.vec[sender_num] == mvec[sender_num] - 1:
+                for k in range(len(self.vec)):
+                    if self.vec[k] < mvec[k] and k != sender_num:
+                        flag = False
+                    else:
+                        flag = True
+            if flag or self.pnum == sender_num:
+                self.vec[sender_num] += 1
+                if display_output:
+                    sys.stdout.write('\n[s] Received %r' % (message))
+        elif self.type_correctness == 'incorrect':
+            probability = random.uniform(0, 1)
+            if probability > 0.5:
+                self.c_queue.append(message)
+                if len(self.c_queue) > 3:
+                    self.print_queue(display_output)
+            else:
+                if display_output:
+                    sys.stdout.write('\n[s] Received %r' % (message))
+
+        # ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def flush(self):
         if self.queue:
