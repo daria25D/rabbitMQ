@@ -2,6 +2,7 @@ import json
 import logging
 import random
 import sys
+import threading
 
 import pika
 
@@ -27,7 +28,7 @@ class RabbitMQ(object):
         self.pnum = -1
         self.N = N
         self.type_correctness = type
-        # self.connect()
+        self.mutex = threading.Lock()
 
     def connect(self, client):
         if client == 'publisher':
@@ -55,13 +56,14 @@ class RabbitMQ(object):
         self.connection.close()
 
         # producer
-
     def publish(self, message, display_output=False, pnum=1):
         if self.vec is None:
             self.vec = [0 for i in range(self.N)]
         self.publishers.append(pnum)
         self.pnum = pnum
+        # self.mutex.acquire()
         self.vec[pnum] += 1
+        # self.mutex.release()
         self.pub_channel.basic_publish(exchange=self.exchange, routing_key="",
                                        body=message, properties=pika.BasicProperties(delivery_mode=2))
         if display_output:
@@ -79,21 +81,25 @@ class RabbitMQ(object):
         mvec = list(message.values())[0]
         flag = False
         if self.type_correctness == 'correct':
+            self.mutex.acquire()
             if self.vec is None:
                 self.vec = [mvec[i] for i in range(len(mvec))]
                 self.vec[sender_num] -= 1
-                # print(self.vec)
                 flag = True
-            elif self.vec[sender_num] == mvec[sender_num] - 1:
+            elif self.vec[sender_num] == mvec[sender_num] - 1 or self.vec[sender_num] == 0:
                 for k in range(len(self.vec)):
-                    if self.vec[k] < mvec[k] and k != sender_num:
+                    if self.vec[k] < mvec[k] and k != sender_num and self.vec[sender_num] != 0:
                         flag = False
                     else:
                         flag = True
             if flag or self.pnum == sender_num:
-                self.vec[sender_num] += 1
+                for k in range(len(self.vec)):
+                    self.vec[k] = max(self.vec[k], mvec[k])
+                # self.vec[self.snum] += 1
+                # print(sender_num, self.vec)
                 if display_output:
                     sys.stdout.write('\n[s] Received %r' % (message))
+            self.mutex.release()
         elif self.type_correctness == 'incorrect':
             probability = random.uniform(0, 1)
             if probability > 0.5:
@@ -104,15 +110,12 @@ class RabbitMQ(object):
                 if display_output:
                     sys.stdout.write('\n[s] Received %r' % (message))
 
-        # ch.basic_ack(delivery_tag=method.delivery_tag)
-
     def flush(self):
         if self.queue:
             self.pub_channel.queue_delete(queue=self.queue)
         self.connect()
 
         # consumer
-
     def consumer(self, callback=None, snum=0):
         self.snum = snum
         if callback is None:

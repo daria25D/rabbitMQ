@@ -9,7 +9,7 @@ hostname = 'localhost'
 def main():
     n = int(sys.argv[1])
     i = int(sys.argv[2])
-    queue = RabbitMQ(hostname, '', N=n, type='incorrect')
+    queue = RabbitMQ(hostname, '', N=n, type='correct')
     queue.connect(client='subscriber')
     queue.consumer(callback=None, snum=i)
 
